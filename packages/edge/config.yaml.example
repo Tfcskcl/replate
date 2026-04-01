@@ -1,0 +1,37 @@
+# Re-plate Edge Device Configuration
+# Place at /etc/replate/config.yaml
+# chmod 600 /etc/replate/config.yaml  (keep credentials safe)
+
+# ── Identity ──────────────────────────────────────────────────────────────
+outlet_id: "YOUR_OUTLET_UUID"
+device_id: "YOUR_DEVICE_UUID"
+
+# ── API connection ────────────────────────────────────────────────────────
+api_url: "https://api.re-plate.in"
+api_key: "YOUR_DEVICE_API_KEY"
+
+# ── Camera source ────────────────────────────────────────────────────────
+# Options: usb | rtsp | rtmp
+camera_source: "usb"
+
+# USB camera (DJI Action 2 via USB-C appears as /dev/video0)
+usb_device: 0
+
+# RTSP camera (existing CCTV)
+# Hikvision: rtsp://admin:password@192.168.1.64/Streaming/Channels/101
+# Dahua:     rtsp://admin:password@192.168.1.64/cam/realmonitor?channel=1
+rtsp_url: ""
+
+# RTMP (DJI streaming via WiFi to local MediaMTX)
+rtmp_url: "rtmp://localhost:1935/live/dji"
+
+# ── Performance ───────────────────────────────────────────────────────────
+# Frames per second sent to cloud inference (keep low for bandwidth)
+pov_fps: 3
+
+# Heartbeat interval in seconds
+heartbeat_interval: 60
+
+# ── Local storage ─────────────────────────────────────────────────────────
+sop_recording_dir: "/tmp/replate-recordings"
+max_local_storage_gb: 10

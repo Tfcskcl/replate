@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/sop", label: "SOP Library", icon: "📋" },
   { href: "/dashboard/chefs", label: "Chefs", icon: "👨‍🍳" },
   { href: "/dashboard/location", label: "Location Intel", icon: "📍" },
+  { href: "/dashboard/intelligence", label: "Intelligence", icon: "📈" },
   { href: "/dashboard/reports", label: "Reports", icon: "📊" },
   { href: "/dashboard/partners", label: "Partners", icon: "🤝" },
 ];
@@ -44,13 +45,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           alignItems: "center",
           gap: 10,
         }}>
-          <div style={{
-            width: 32, height: 32,
-            background: "#FF6B2B",
-            borderRadius: 6,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, fontSize: 14, color: "#fff", flexShrink: 0,
-          }}>R</div>
+          <img
+            src="/logo-mark.png"
+            alt="re-plate"
+            style={{ width: 32, height: 32, flexShrink: 0, objectFit: "contain" }}
+          />
           {sidebarOpen && (
             <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: 0.5 }}>re-plate</span>
           )}

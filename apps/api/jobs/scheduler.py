@@ -53,8 +53,18 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
+    # Run the hospitality intelligence pipeline (consumption -> variance ->
+    # profit) nightly at 02:30, for the previous day, across all outlets.
+    scheduler.add_job(
+        _run_profit_pipeline,
+        CronTrigger(hour=2, minute=30),
+        id="profit_pipeline",
+        name="Run consumption/variance/profit pipeline",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("Scheduler started with 5 jobs")
+    logger.info("Scheduler started with 6 jobs")
     return scheduler
 
 
@@ -117,3 +127,11 @@ async def _check_device_health():
             await db.commit()
     except Exception as e:
         logger.error(f"Device health check error: {e}")
+
+
+async def _run_profit_pipeline():
+    try:
+        from services.profit_engine import run_daily_pipeline_all_outlets
+        await run_daily_pipeline_all_outlets()
+    except Exception as e:
+        logger.error(f"Profit pipeline job error: {e}")

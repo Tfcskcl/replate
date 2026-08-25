@@ -83,6 +83,29 @@ class ModuleTypeEnum(str, enum.Enum):
     shadow_session = "shadow_session"
     team_briefing = "team_briefing"
 
+class IngestSourceEnum(str, enum.Enum):
+    pos_erp = "pos_erp"
+    smart_scale = "smart_scale"
+    jarvis = "jarvis"
+    manual = "manual"
+
+class InventoryTxnTypeEnum(str, enum.Enum):
+    purchase = "purchase"
+    consumption = "consumption"
+    waste = "waste"
+    adjustment = "adjustment"
+    count = "count"
+
+class VarianceTypeEnum(str, enum.Enum):
+    waste = "waste"
+    leakage = "leakage"
+    portion_control = "portion_control"
+
+class VarianceStatusEnum(str, enum.Enum):
+    open = "open"
+    reviewed = "reviewed"
+    resolved = "resolved"
+
 
 # ── Models ────────────────────────────────────────────────────────────────
 
@@ -394,3 +417,143 @@ class PartnerRevenueStatement(Base):
     line_items: Mapped[list] = mapped_column(JSON, default=list)
 
     partner: Mapped["Partner"] = relationship("Partner", back_populates="revenue_statements")
+
+
+# ── Hospitality Intelligence Layer ──────────────────────────────────────────
+# POS/ERP, Smart Scale, and Jarvis (Staqu video analytics) events feed the
+# ingestion layer below, which the inventory/consumption/people engines turn
+# into variance intelligence (waste, leakage, portion control) and, ultimately,
+# a per-outlet profit impact.
+
+class RawIngestEvent(Base):
+    __tablename__ = "raw_ingest_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), index=True)
+    event_type: Mapped[str] = mapped_column(String(50))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    processed: Mapped[bool] = mapped_column(Boolean, default=False)
+    processing_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_raw_ingest_outlet_source_ts", "outlet_id", "source", "received_at"),)
+
+
+class InventoryItem(Base):
+    __tablename__ = "inventory_items"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    sku: Mapped[str] = mapped_column(String(100))
+    name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(100), default="uncategorized")
+    unit: Mapped[str] = mapped_column(String(20))
+    unit_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    current_stock: Mapped[float] = mapped_column(Float, default=0.0)
+    reorder_level: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
+
+    __table_args__ = (Index("ix_inventory_outlet_sku", "outlet_id", "sku", unique=True),)
+
+
+class InventoryTransaction(Base):
+    __tablename__ = "inventory_transactions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    item_id: Mapped[str] = mapped_column(String(36), ForeignKey("inventory_items.id"), index=True)
+    txn_type: Mapped[InventoryTxnTypeEnum] = mapped_column(Enum(InventoryTxnTypeEnum))
+    quantity: Mapped[float] = mapped_column(Float)  # signed: +stock in, -stock out; absolute for `count`
+    unit_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), default=IngestSourceEnum.manual)
+    reference_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    dish_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_inv_txn_outlet_item_ts", "outlet_id", "item_id", "occurred_at"),)
+
+
+class RecipeIngredient(Base):
+    """Theoretical ingredient quantity per dish serving — the basis for computing theoretical consumption from POS sales."""
+    __tablename__ = "recipe_ingredients"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    dish_id: Mapped[str] = mapped_column(String(36), ForeignKey("dishes.id"), index=True)
+    item_id: Mapped[str] = mapped_column(String(36), ForeignKey("inventory_items.id"), index=True)
+    quantity_per_serving: Mapped[float] = mapped_column(Float)
+    unit: Mapped[str] = mapped_column(String(20))
+
+    __table_args__ = (Index("ix_recipe_dish_item", "dish_id", "item_id", unique=True),)
+
+
+class PeopleEvent(Base):
+    """People/activity events from Jarvis — footfall, staff presence, unauthorized access, unrecorded removals."""
+    __tablename__ = "people_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), default=IngestSourceEnum.jarvis)
+    event_type: Mapped[str] = mapped_column(String(50))
+    zone_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    staff_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    person_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
+
+    __table_args__ = (Index("ix_people_outlet_ts", "outlet_id", "occurred_at"),)
+
+
+class ConsumptionRecord(Base):
+    """Theoretical (recipe x sales) vs actual (inventory ledger) consumption of one item, for one outlet-day."""
+    __tablename__ = "consumption_records"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    item_id: Mapped[str] = mapped_column(String(36), ForeignKey("inventory_items.id"), index=True)
+    period_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    theoretical_qty: Mapped[float] = mapped_column(Float, default=0.0)
+    actual_qty: Mapped[float] = mapped_column(Float, default=0.0)
+    unit: Mapped[str] = mapped_column(String(20))
+    source_breakdown: Mapped[dict] = mapped_column(JSON, default=dict)
+    computed_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    __table_args__ = (Index("ix_consumption_outlet_item_date", "outlet_id", "item_id", "period_date", unique=True),)
+
+
+class VarianceRecord(Base):
+    """Output of Variance Intelligence: a classified, costed gap between expected and actual usage."""
+    __tablename__ = "variance_records"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    item_id: Mapped[str] = mapped_column(String(36), ForeignKey("inventory_items.id"), index=True)
+    dish_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    variance_type: Mapped[VarianceTypeEnum] = mapped_column(Enum(VarianceTypeEnum), index=True)
+    period_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    expected_qty: Mapped[float] = mapped_column(Float)
+    actual_qty: Mapped[float] = mapped_column(Float)
+    variance_qty: Mapped[float] = mapped_column(Float)
+    variance_percent: Mapped[float] = mapped_column(Float)
+    cost_impact_inr: Mapped[float] = mapped_column(Float)
+    confidence: Mapped[float] = mapped_column(Float, default=0.5)
+    evidence: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[VarianceStatusEnum] = mapped_column(Enum(VarianceStatusEnum), default=VarianceStatusEnum.open)
+    detected_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    __table_args__ = (Index("ix_variance_outlet_type_date", "outlet_id", "variance_type", "period_date"),)
+
+
+class ProfitImpactSnapshot(Base):
+    """Profit Engine output: one outlet-day rollup of revenue, COGS, and variance cost by category."""
+    __tablename__ = "profit_impact_snapshots"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    period_date: Mapped[datetime] = mapped_column(DateTime, index=True)
+    revenue_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    cogs_theoretical_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    cogs_actual_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    waste_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    leakage_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    portion_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    total_variance_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
+    margin_erosion_percent: Mapped[float] = mapped_column(Float, default=0.0)
+    generated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+    __table_args__ = (Index("ix_profit_outlet_date", "outlet_id", "period_date", unique=True),)

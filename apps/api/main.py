@@ -7,7 +7,8 @@ from database import engine, Base
 from routers import (
     auth, restaurants, outlets, staff, sops,
     compliance, training, location, cameras,
-    devices, partners, revenue, stream, ws
+    devices, partners, revenue, stream, ws,
+    ingest, inventory, consumption, variance, profit
 )
 from middleware.auth import ClerkAuthMiddleware
 from jobs.scheduler import start_scheduler
@@ -64,6 +65,11 @@ app.include_router(devices.router, prefix="/api/devices", tags=["devices"])
 app.include_router(partners.router, prefix="/api/partners", tags=["partners"])
 app.include_router(revenue.router, prefix="/api/revenue", tags=["revenue"])
 app.include_router(stream.router, prefix="/api/stream", tags=["stream"])
+app.include_router(ingest.router, prefix="/api/ingest", tags=["ingest"])
+app.include_router(inventory.router, prefix="/api/inventory", tags=["inventory"])
+app.include_router(consumption.router, prefix="/api/consumption", tags=["consumption"])
+app.include_router(variance.router, prefix="/api/variance", tags=["variance"])
+app.include_router(profit.router, prefix="/api/profit", tags=["profit"])
 app.include_router(ws.router, prefix="/ws", tags=["websocket"])
 
 

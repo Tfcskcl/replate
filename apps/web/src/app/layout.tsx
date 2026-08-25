@@ -8,6 +8,10 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "Re-Plate Dashboard",
   description: "AI-powered kitchen intelligence platform",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/logo-mark.png",
+  },
 };
 
 export default function RootLayout({

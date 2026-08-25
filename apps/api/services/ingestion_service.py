@@ -1,27 +1,45 @@
 """
-Event ingestion layer — normalizes events from POS/ERP, Smart Scale, and
-Jarvis (Staqu video analytics) into re-plate's internal model, then
-dispatches them into the inventory and people engines. Every event is kept
-as a RawIngestEvent for audit/replay regardless of whether it processed
-cleanly, mirroring how ComplianceEvent captures edge-device events.
+Event ingestion layer — normalizes events from any registered POS/ERP,
+Smart Scale, or vision (e.g. Jarvis) provider into re-plate's internal
+model, then dispatches them into the inventory and people engines.
+
+Dispatch happens on `provider.provider_type` (pos / scale / vision /
+manual), never on the specific vendor key — this is the seam described in
+services/provider_registry.py. Adding a second vision vendor or a POS
+partner never touches this file; it only needs a new Provider row, plus a
+vendor-specific adapter function here IF that vendor's payload shape truly
+differs from the normalised shape below (most won't).
+
+Every event is kept as a RawIngestEvent for audit/replay regardless of
+whether it processed cleanly, mirroring how ComplianceEvent captures
+edge-device events.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 import uuid
 import logging
 
-from database import RawIngestEvent, IngestSourceEnum, InventoryTxnTypeEnum, PeopleEvent
-from services import inventory_engine
+from database import RawIngestEvent, InventoryTxnTypeEnum, PeopleEvent, Provider, ProviderTypeEnum
+from services import inventory_engine, provider_registry
 
 logger = logging.getLogger(__name__)
 
 
-async def ingest(outlet_id: str, source: IngestSourceEnum, payload: dict, db: AsyncSession) -> RawIngestEvent:
+class UnknownProviderError(Exception):
+    pass
+
+
+async def ingest(outlet_id: str, provider_key: str, payload: dict, db: AsyncSession) -> RawIngestEvent:
+    provider = await provider_registry.get_provider(db, provider_key)
+    if not provider or not provider.is_active:
+        raise UnknownProviderError(f"'{provider_key}' is not a registered, active provider")
+
     event_type = payload.get("event_type", "unknown")
     raw = RawIngestEvent(
         id=str(uuid.uuid4()),
         outlet_id=outlet_id,
-        source=source,
+        source_provider=provider.key,
+        source_type=provider.provider_type,
         event_type=event_type,
         payload=payload,
         received_at=datetime.utcnow(),
@@ -30,27 +48,27 @@ async def ingest(outlet_id: str, source: IngestSourceEnum, payload: dict, db: As
     await db.flush()
 
     try:
-        await _dispatch(outlet_id, source, event_type, payload, db)
+        await _dispatch(outlet_id, provider, event_type, payload, db)
         raw.processed = True
     except Exception as e:
         raw.processing_error = str(e)
-        logger.error(f"Failed to process {source}/{event_type} for outlet {outlet_id}: {e}")
+        logger.error(f"Failed to process {provider.key}/{event_type} for outlet {outlet_id}: {e}")
 
     await db.commit()
     await db.refresh(raw)
     return raw
 
 
-async def _dispatch(outlet_id: str, source: IngestSourceEnum, event_type: str, payload: dict, db: AsyncSession):
-    if source == IngestSourceEnum.pos_erp:
-        await _handle_pos_event(outlet_id, event_type, payload, db)
-    elif source == IngestSourceEnum.smart_scale:
-        await _handle_scale_event(outlet_id, event_type, payload, db)
-    elif source == IngestSourceEnum.jarvis:
-        await _handle_jarvis_event(outlet_id, event_type, payload, db)
+async def _dispatch(outlet_id: str, provider: Provider, event_type: str, payload: dict, db: AsyncSession):
+    if provider.provider_type == ProviderTypeEnum.pos:
+        await _handle_pos_event(outlet_id, provider.key, event_type, payload, db)
+    elif provider.provider_type == ProviderTypeEnum.scale:
+        await _handle_scale_event(outlet_id, provider.key, event_type, payload, db)
+    elif provider.provider_type == ProviderTypeEnum.vision:
+        await _handle_vision_event(outlet_id, provider.key, event_type, payload, db)
 
 
-async def _handle_pos_event(outlet_id: str, event_type: str, payload: dict, db: AsyncSession):
+async def _handle_pos_event(outlet_id: str, provider_key: str, event_type: str, payload: dict, db: AsyncSession):
     if event_type == "sale":
         # payload: {dish_id, dish_name, quantity, line_total, occurred_at}
         # POS doesn't know ingredient quantities — theoretical consumption
@@ -67,7 +85,8 @@ async def _handle_pos_event(outlet_id: str, event_type: str, payload: dict, db: 
             unit=payload.get("unit", "kg"),
             unit_cost_inr=payload.get("unit_cost_inr", 0.0),
             txn_type=InventoryTxnTypeEnum.purchase,
-            source=IngestSourceEnum.pos_erp,
+            source_provider=provider_key,
+            source_type=ProviderTypeEnum.pos,
             reference_id=payload.get("reference_id"),
             occurred_at=_parse_ts(payload.get("occurred_at")),
         )
@@ -79,13 +98,14 @@ async def _handle_pos_event(outlet_id: str, event_type: str, payload: dict, db: 
             unit=payload.get("unit", "kg"),
             unit_cost_inr=payload.get("unit_cost_inr", 0.0),
             txn_type=InventoryTxnTypeEnum.adjustment,
-            source=IngestSourceEnum.pos_erp,
+            source_provider=provider_key,
+            source_type=ProviderTypeEnum.pos,
             reference_id=payload.get("reference_id"),
             occurred_at=_parse_ts(payload.get("occurred_at")),
         )
 
 
-async def _handle_scale_event(outlet_id: str, event_type: str, payload: dict, db: AsyncSession):
+async def _handle_scale_event(outlet_id: str, provider_key: str, event_type: str, payload: dict, db: AsyncSession):
     if event_type != "weight_reading":
         return
 
@@ -108,7 +128,8 @@ async def _handle_scale_event(outlet_id: str, event_type: str, payload: dict, db
         unit="kg",
         unit_cost_inr=payload.get("unit_cost_inr", 0.0),
         txn_type=txn_type,
-        source=IngestSourceEnum.smart_scale,
+        source_provider=provider_key,
+        source_type=ProviderTypeEnum.scale,
         reference_id=payload.get("reference_id"),
         dish_id=payload.get("dish_id"),
         occurred_at=_parse_ts(payload.get("occurred_at")),
@@ -116,12 +137,15 @@ async def _handle_scale_event(outlet_id: str, event_type: str, payload: dict, db
     )
 
 
-async def _handle_jarvis_event(outlet_id: str, event_type: str, payload: dict, db: AsyncSession):
+async def _handle_vision_event(outlet_id: str, provider_key: str, event_type: str, payload: dict, db: AsyncSession):
     # payload: {zone_id?, staff_id?, person_count?, confidence?, occurred_at, ...}
+    # Normalised shape any vision vendor is expected to produce — see
+    # Section C of the architecture blueprint for the full event contract.
     evt = PeopleEvent(
         id=str(uuid.uuid4()),
         outlet_id=outlet_id,
-        source=IngestSourceEnum.jarvis,
+        source_provider=provider_key,
+        source_type=ProviderTypeEnum.vision,
         event_type=event_type,
         zone_id=payload.get("zone_id"),
         staff_id=payload.get("staff_id"),
@@ -133,10 +157,10 @@ async def _handle_jarvis_event(outlet_id: str, event_type: str, payload: dict, d
     db.add(evt)
     await db.flush()
 
-    # An "unrecorded_removal" event (Jarvis saw stock leave frame near an
-    # inventory zone with no matching POS/scale transaction) is itself
-    # leakage evidence — record it as a negative inventory movement so the
-    # variance engine's actual_qty accounts for it.
+    # An "unrecorded_removal" event (a vision provider saw stock leave frame
+    # near an inventory zone with no matching POS/scale transaction) is
+    # itself leakage evidence — record it as a negative inventory movement
+    # so the variance engine's actual_qty accounts for it.
     if event_type == "unrecorded_removal" and payload.get("sku"):
         await inventory_engine.apply_transaction(
             db, outlet_id,
@@ -145,10 +169,11 @@ async def _handle_jarvis_event(outlet_id: str, event_type: str, payload: dict, d
             unit=payload.get("unit", "kg"),
             unit_cost_inr=payload.get("unit_cost_inr", 0.0),
             txn_type=InventoryTxnTypeEnum.adjustment,
-            source=IngestSourceEnum.jarvis,
+            source_provider=provider_key,
+            source_type=ProviderTypeEnum.vision,
             reference_id=payload.get("reference_id"),
             occurred_at=_parse_ts(payload.get("occurred_at")),
-            notes="Jarvis-detected unrecorded removal",
+            notes=f"{provider_key}-detected unrecorded removal",
         )
 
 

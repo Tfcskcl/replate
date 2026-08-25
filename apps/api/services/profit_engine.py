@@ -10,7 +10,7 @@ import logging
 
 from database import (
     RawIngestEvent, VarianceRecord, VarianceTypeEnum, ProfitImpactSnapshot,
-    IngestSourceEnum, ConsumptionRecord, InventoryItem,
+    ProviderTypeEnum, ConsumptionRecord, InventoryItem,
 )
 
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ async def compute_daily_profit_impact(outlet_id: str, period_date: datetime, db:
         select(RawIngestEvent).where(
             and_(
                 RawIngestEvent.outlet_id == outlet_id,
-                RawIngestEvent.source == IngestSourceEnum.pos_erp,
+                RawIngestEvent.source_type == ProviderTypeEnum.pos,
                 RawIngestEvent.event_type == "sale",
                 RawIngestEvent.received_at >= day_start,
                 RawIngestEvent.received_at < day_end,

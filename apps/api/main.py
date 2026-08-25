@@ -3,15 +3,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
-from database import engine, Base
+from database import engine, Base, AsyncSessionLocal
 from routers import (
     auth, restaurants, outlets, staff, sops,
     compliance, training, location, cameras,
     devices, partners, revenue, stream, ws,
-    ingest, inventory, consumption, variance, profit
+    ingest, inventory, consumption, variance, profit, providers
 )
 from middleware.auth import ClerkAuthMiddleware
 from jobs.scheduler import start_scheduler
+from services.provider_registry import seed_default_providers
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -23,6 +24,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting re-plate API...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    async with AsyncSessionLocal() as db:
+        await seed_default_providers(db)
     scheduler = start_scheduler()
     yield
     # Shutdown
@@ -66,6 +69,7 @@ app.include_router(partners.router, prefix="/api/partners", tags=["partners"])
 app.include_router(revenue.router, prefix="/api/revenue", tags=["revenue"])
 app.include_router(stream.router, prefix="/api/stream", tags=["stream"])
 app.include_router(ingest.router, prefix="/api/ingest", tags=["ingest"])
+app.include_router(providers.router, prefix="/api/providers", tags=["providers"])
 app.include_router(inventory.router, prefix="/api/inventory", tags=["inventory"])
 app.include_router(consumption.router, prefix="/api/consumption", tags=["consumption"])
 app.include_router(variance.router, prefix="/api/variance", tags=["variance"])

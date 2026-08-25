@@ -5,6 +5,7 @@ from typing import Optional
 import uuid
 
 from database import InventoryItem, InventoryTransaction, InventoryTxnTypeEnum, ProviderTypeEnum
+from services import product_registry
 
 
 async def get_or_create_item(
@@ -16,8 +17,13 @@ async def get_or_create_item(
     name: Optional[str] = None,
     category: str = "uncategorized",
 ) -> InventoryItem:
+    """Resolve the canonical Product for `sku` first, then this outlet's
+    stock row for that product — a provider event only ever names a SKU, so
+    ingestion and the Product master stay in lockstep automatically."""
+    product = await product_registry.get_or_create_product(db, sku, unit=unit, name=name, category=category)
+
     result = await db.execute(
-        select(InventoryItem).where(InventoryItem.outlet_id == outlet_id, InventoryItem.sku == sku)
+        select(InventoryItem).where(InventoryItem.outlet_id == outlet_id, InventoryItem.product_id == product.id)
     )
     item = result.scalar_one_or_none()
     if item:
@@ -26,9 +32,10 @@ async def get_or_create_item(
     item = InventoryItem(
         id=str(uuid.uuid4()),
         outlet_id=outlet_id,
-        sku=sku,
-        name=name or sku,
-        category=category,
+        product_id=product.id,
+        sku=product.sku_code,
+        name=product.name,
+        category=product.category,
         unit=unit,
         unit_cost_inr=unit_cost_inr,
         current_stock=0.0,

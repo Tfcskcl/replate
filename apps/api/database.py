@@ -467,10 +467,29 @@ class RawIngestEvent(Base):
     __table_args__ = (Index("ix_raw_ingest_outlet_type_ts", "outlet_id", "source_type", "received_at"),)
 
 
+class Product(Base):
+    """Canonical SKU identity — what this item IS, independent of any one
+    outlet's stock row. InventoryItem is the per-outlet stock ledger;
+    RecipeIngredient references Product directly, so a recipe authored once
+    is valid at every outlet rather than tied to the outlet it was entered
+    against. See services/product_registry.py."""
+    __tablename__ = "products"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    sku_code: Mapped[str] = mapped_column(String(100), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    category: Mapped[str] = mapped_column(String(100), default="uncategorized")
+    default_unit: Mapped[str] = mapped_column(String(20), default="kg")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
+
 class InventoryItem(Base):
+    """Per-outlet stock ledger row for a Product. `sku`/`name`/`category`/
+    `unit` are denormalized from Product at creation time for fast reads
+    without a join; `product_id` is the canonical identity."""
     __tablename__ = "inventory_items"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
+    product_id: Mapped[str] = mapped_column(String(36), ForeignKey("products.id"), index=True)
     sku: Mapped[str] = mapped_column(String(100))
     name: Mapped[str] = mapped_column(String(255))
     category: Mapped[str] = mapped_column(String(100), default="uncategorized")
@@ -481,7 +500,7 @@ class InventoryItem(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
 
-    __table_args__ = (Index("ix_inventory_outlet_sku", "outlet_id", "sku", unique=True),)
+    __table_args__ = (Index("ix_inventory_outlet_product", "outlet_id", "product_id", unique=True),)
 
 
 class InventoryTransaction(Base):
@@ -503,15 +522,17 @@ class InventoryTransaction(Base):
 
 
 class RecipeIngredient(Base):
-    """Theoretical ingredient quantity per dish serving — the basis for computing theoretical consumption from POS sales."""
+    """Theoretical ingredient quantity per dish serving — the basis for computing
+    theoretical consumption from POS sales. References Product (not a specific
+    outlet's InventoryItem) so one recipe applies across every outlet."""
     __tablename__ = "recipe_ingredients"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     dish_id: Mapped[str] = mapped_column(String(36), ForeignKey("dishes.id"), index=True)
-    item_id: Mapped[str] = mapped_column(String(36), ForeignKey("inventory_items.id"), index=True)
+    product_id: Mapped[str] = mapped_column(String(36), ForeignKey("products.id"), index=True)
     quantity_per_serving: Mapped[float] = mapped_column(Float)
     unit: Mapped[str] = mapped_column(String(20))
 
-    __table_args__ = (Index("ix_recipe_dish_item", "dish_id", "item_id", unique=True),)
+    __table_args__ = (Index("ix_recipe_dish_product", "dish_id", "product_id", unique=True),)
 
 
 class PeopleEvent(Base):

@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
+from typing import Optional
 import uuid
 
 from database import get_db, InventoryItem, InventoryTransaction, RecipeIngredient
 from middleware.auth import require_roles
+from services import product_registry
 
 router = APIRouter()
 
@@ -44,9 +46,11 @@ async def list_item_transactions(
 
 class RecipeIngredientPayload(BaseModel):
     dish_id: str
-    item_id: str
+    sku_code: str
     quantity_per_serving: float
     unit: str
+    product_name: Optional[str] = None
+    category: str = "uncategorized"
 
 
 @router.post("/recipe-ingredients")
@@ -55,7 +59,18 @@ async def add_recipe_ingredient(
     db: AsyncSession = Depends(get_db),
     user=Depends(require_roles(MANAGE_ROLES)),
 ):
-    ri = RecipeIngredient(id=str(uuid.uuid4()), **body.model_dump())
+    # Recipes reference the canonical Product by SKU, not an outlet-specific
+    # InventoryItem — that's what makes one recipe valid at every outlet.
+    product = await product_registry.get_or_create_product(
+        db, body.sku_code, unit=body.unit, name=body.product_name, category=body.category
+    )
+    ri = RecipeIngredient(
+        id=str(uuid.uuid4()),
+        dish_id=body.dish_id,
+        product_id=product.id,
+        quantity_per_serving=body.quantity_per_serving,
+        unit=body.unit,
+    )
     db.add(ri)
     await db.commit()
     await db.refresh(ri)

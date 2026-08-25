@@ -39,14 +39,29 @@ async def compute_daily_consumption(outlet_id: str, period_date: datetime, db: A
         if dish_id:
             dish_qty[dish_id] = dish_qty.get(dish_id, 0) + qty
 
-    theoretical_by_item: dict = {}
+    theoretical_by_product: dict = {}
     if dish_qty:
         recipe_result = await db.execute(
             select(RecipeIngredient).where(RecipeIngredient.dish_id.in_(dish_qty.keys()))
         )
         for ri in recipe_result.scalars().all():
             sold = dish_qty.get(ri.dish_id, 0)
-            theoretical_by_item[ri.item_id] = theoretical_by_item.get(ri.item_id, 0) + sold * ri.quantity_per_serving
+            theoretical_by_product[ri.product_id] = theoretical_by_product.get(ri.product_id, 0) + sold * ri.quantity_per_serving
+
+    # A recipe references a Product across every outlet, but consumption
+    # tracking is per-outlet stock — translate into this outlet's InventoryItem
+    # rows. A product with theoretical demand but no stock row yet at this
+    # outlet contributes no theoretical consumption (nothing to compare it to).
+    theoretical_by_item: dict = {}
+    if theoretical_by_product:
+        product_items_result = await db.execute(
+            select(InventoryItem).where(
+                InventoryItem.outlet_id == outlet_id,
+                InventoryItem.product_id.in_(theoretical_by_product.keys()),
+            )
+        )
+        for item in product_items_result.scalars().all():
+            theoretical_by_item[item.id] = theoretical_by_item.get(item.id, 0) + theoretical_by_product[item.product_id]
 
     # Actual: negative inventory transactions (consumption/waste/adjustment) that day
     txn_result = await db.execute(

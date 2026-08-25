@@ -40,7 +40,7 @@ export default function LandingPage() {
       <div style={{ borderBottom: "1px solid #eee" }}>
         <Section style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 32, height: 32, background: "#FF6B2B", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>R</div>
+            <img src="/logo-mark.png" alt="re-plate" style={{ width: 32, height: 32, objectFit: "contain" }} />
             <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: 0.5 }}>re-plate</span>
           </div>
           <SignedIn>

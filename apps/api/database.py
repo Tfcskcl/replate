@@ -83,10 +83,16 @@ class ModuleTypeEnum(str, enum.Enum):
     shadow_session = "shadow_session"
     team_briefing = "team_briefing"
 
-class IngestSourceEnum(str, enum.Enum):
-    pos_erp = "pos_erp"
-    smart_scale = "smart_scale"
-    jarvis = "jarvis"
+class ProviderTypeEnum(str, enum.Enum):
+    """
+    The fixed, small set of integration categories re-plate understands.
+    Unlike a specific vendor (Jarvis, Petpooja, ...), these categories are
+    stable — a new vision vendor is a new Provider row of type `vision`,
+    never a new enum value or a code change. See services/provider_registry.py.
+    """
+    pos = "pos"
+    scale = "scale"
+    vision = "vision"
     manual = "manual"
 
 class InventoryTxnTypeEnum(str, enum.Enum):
@@ -420,23 +426,45 @@ class PartnerRevenueStatement(Base):
 
 
 # ── Hospitality Intelligence Layer ──────────────────────────────────────────
-# POS/ERP, Smart Scale, and Jarvis (Staqu video analytics) events feed the
+# POS/ERP, Smart Scale, and computer-vision (e.g. Jarvis) events feed the
 # ingestion layer below, which the inventory/consumption/people engines turn
 # into variance intelligence (waste, leakage, portion control) and, ultimately,
 # a per-outlet profit impact.
+#
+# Every event carries two source fields, deliberately kept separate:
+#   source_provider  the specific registered vendor (e.g. "jarvis") — for
+#                     audit and per-vendor accounting.
+#   source_type       the fixed category (pos / scale / vision / manual) —
+#                     what every engine actually queries on, so swapping the
+#                     vendor behind a category never touches engine code.
+# See services/provider_registry.py for the AI-provider abstraction this
+# schema exists to support.
+
+class Provider(Base):
+    """A registered data-source vendor — the swappable half of the AI/POS/scale integration."""
+    __tablename__ = "providers"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    key: Mapped[str] = mapped_column(String(50), unique=True, index=True)  # e.g. "jarvis", "petpooja"
+    provider_type: Mapped[ProviderTypeEnum] = mapped_column(Enum(ProviderTypeEnum), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    config: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now())
+
 
 class RawIngestEvent(Base):
     __tablename__ = "raw_ingest_events"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
-    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), index=True)
+    source_provider: Mapped[str] = mapped_column(String(50), index=True)
+    source_type: Mapped[ProviderTypeEnum] = mapped_column(Enum(ProviderTypeEnum), index=True)
     event_type: Mapped[str] = mapped_column(String(50))
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
     received_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
     processed: Mapped[bool] = mapped_column(Boolean, default=False)
     processing_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (Index("ix_raw_ingest_outlet_source_ts", "outlet_id", "source", "received_at"),)
+    __table_args__ = (Index("ix_raw_ingest_outlet_type_ts", "outlet_id", "source_type", "received_at"),)
 
 
 class InventoryItem(Base):
@@ -464,7 +492,8 @@ class InventoryTransaction(Base):
     txn_type: Mapped[InventoryTxnTypeEnum] = mapped_column(Enum(InventoryTxnTypeEnum))
     quantity: Mapped[float] = mapped_column(Float)  # signed: +stock in, -stock out; absolute for `count`
     unit_cost_inr: Mapped[float] = mapped_column(Float, default=0.0)
-    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), default=IngestSourceEnum.manual)
+    source_provider: Mapped[str] = mapped_column(String(50), default="manual")
+    source_type: Mapped[ProviderTypeEnum] = mapped_column(Enum(ProviderTypeEnum), default=ProviderTypeEnum.manual)
     reference_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     dish_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), index=True)
@@ -486,11 +515,12 @@ class RecipeIngredient(Base):
 
 
 class PeopleEvent(Base):
-    """People/activity events from Jarvis — footfall, staff presence, unauthorized access, unrecorded removals."""
+    """People/activity events from a vision provider — footfall, staff presence, unauthorized access, unrecorded removals."""
     __tablename__ = "people_events"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     outlet_id: Mapped[str] = mapped_column(String(36), ForeignKey("outlets.id"), index=True)
-    source: Mapped[IngestSourceEnum] = mapped_column(Enum(IngestSourceEnum), default=IngestSourceEnum.jarvis)
+    source_provider: Mapped[str] = mapped_column(String(50))
+    source_type: Mapped[ProviderTypeEnum] = mapped_column(Enum(ProviderTypeEnum), default=ProviderTypeEnum.vision)
     event_type: Mapped[str] = mapped_column(String(50))
     zone_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     staff_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)

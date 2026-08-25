@@ -12,7 +12,7 @@ import uuid
 
 from database import (
     RawIngestEvent, RecipeIngredient, InventoryTransaction, InventoryItem,
-    ConsumptionRecord, IngestSourceEnum, InventoryTxnTypeEnum,
+    ConsumptionRecord, ProviderTypeEnum, InventoryTxnTypeEnum,
 )
 
 
@@ -25,7 +25,7 @@ async def compute_daily_consumption(outlet_id: str, period_date: datetime, db: A
         select(RawIngestEvent).where(
             and_(
                 RawIngestEvent.outlet_id == outlet_id,
-                RawIngestEvent.source == IngestSourceEnum.pos_erp,
+                RawIngestEvent.source_type == ProviderTypeEnum.pos,
                 RawIngestEvent.event_type == "sale",
                 RawIngestEvent.received_at >= day_start,
                 RawIngestEvent.received_at < day_end,

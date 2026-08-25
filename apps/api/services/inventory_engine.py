@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Optional
 import uuid
 
-from database import InventoryItem, InventoryTransaction, InventoryTxnTypeEnum, IngestSourceEnum
+from database import InventoryItem, InventoryTransaction, InventoryTxnTypeEnum, ProviderTypeEnum
 
 
 async def get_or_create_item(
@@ -46,7 +46,8 @@ async def apply_transaction(
     unit: str,
     unit_cost_inr: float,
     txn_type: InventoryTxnTypeEnum,
-    source: IngestSourceEnum,
+    source_provider: str,
+    source_type: ProviderTypeEnum,
     reference_id: Optional[str] = None,
     dish_id: Optional[str] = None,
     occurred_at: Optional[datetime] = None,
@@ -75,7 +76,8 @@ async def apply_transaction(
         txn_type=txn_type,
         quantity=quantity,
         unit_cost_inr=item.unit_cost_inr,
-        source=source,
+        source_provider=source_provider,
+        source_type=source_type,
         reference_id=reference_id,
         dish_id=dish_id,
         occurred_at=occurred_at or datetime.utcnow(),

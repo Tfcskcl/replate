@@ -135,6 +135,54 @@ Key endpoints:
 | GET  | `/api/location/outlet/{id}/recommendations` | Layout findings |
 | GET  | `/api/partners/{id}/performance` | Partner earnings summary |
 | GET  | `/api/revenue/partner/{id}/statements` | Revenue statements |
+| POST | `/api/ingest/{pos\|scale\|jarvis}` | Push a POS/ERP, Smart Scale, or Jarvis event |
+| GET  | `/api/inventory/outlet/{id}/items` | Current stock levels |
+| GET  | `/api/consumption/outlet/{id}` | Theoretical vs actual consumption |
+| GET  | `/api/variance/outlet/{id}` | Waste / leakage / portion-control findings |
+| GET  | `/api/profit/outlet/{id}/summary` | Profit-impact summary |
+
+---
+
+## Hospitality Intelligence Layer
+
+Alongside the SOP/CCTV compliance system, re-plate runs a data pipeline that turns POS/ERP, Smart Scale, and Jarvis (Staqu's video analytics engine) events into a per-outlet profit-impact number:
+
+```
+ POS / ERP          SMART SCALE        JARVIS
+   │                    │                 │
+   └────────────┬───────┴────────┬────────┘
+                ↓                ↓
+           EVENT INGESTION / API LAYER        POST /api/ingest/{pos,scale,jarvis}
+                    ↓
+          RE-PLATE DATA ENGINE                RawIngestEvent (audit log)
+                    ↓
+        ┌───────────┼────────────┐
+        ↓           ↓            ↓
+   INVENTORY     CONSUMPTION   PEOPLE /
+   ENGINE        ENGINE        EVENTS         inventory_engine.py / consumption_engine.py
+        │           │            │
+        └───────────┼────────────┘
+                    ↓
+          VARIANCE INTELLIGENCE               variance_engine.py
+                    ↓
+       ┌────────────┼─────────────┐
+       ↓            ↓             ↓
+      WASTE       LEAKAGE      PORTION
+      LOSS        DETECTION     CONTROL
+       └────────────┼─────────────┘
+                    ↓
+             PROFIT ENGINE                     profit_engine.py
+                    ↓
+          RE-PLATE DASHBOARD
+                    ↓
+             AI COPILOT
+```
+
+- **Ingestion** (`routers/ingest.py`): POS/ERP pushes `sale`/`purchase`/`stock_adjustment` events, Smart Scale pushes `weight_reading` events, Jarvis pushes people/activity events (footfall, `unauthorized_access`, `unrecorded_removal`). Every event lands in `raw_ingest_events` first, then dispatches into the engines. Authenticate with an `X-API-Key` header, same as edge devices.
+- **Inventory Engine** (`services/inventory_engine.py`): maintains `InventoryItem.current_stock` from a signed `InventoryTransaction` ledger (purchase/consumption/waste/adjustment/count).
+- **Consumption Engine** (`services/consumption_engine.py`): computes, per outlet-day, *theoretical* usage (POS sales × `RecipeIngredient` quantities) vs *actual* usage (inventory ledger).
+- **Variance Intelligence** (`services/variance_engine.py`): classifies a meaningful gap between theoretical and actual as `waste` (covered by logged waste transactions), `leakage` (corroborated by a Jarvis `unrecorded_removal`/`unauthorized_access` event), or `portion_control` (unexplained over-serving), with a ₹ cost impact.
+- **Profit Engine** (`services/profit_engine.py`): rolls revenue, COGS, and variance cost by category into a daily `ProfitImpactSnapshot` per outlet — the number the dashboard/AI copilot surface. Runs nightly via the scheduler at 02:30, and on demand via `POST /api/profit/outlet/{id}/recompute`.
 
 ---
 

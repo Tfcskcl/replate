@@ -11,7 +11,7 @@ import uuid
 
 from database import (
     ConsumptionRecord, InventoryItem, VarianceRecord, VarianceTypeEnum,
-    VarianceStatusEnum, PeopleEvent, IngestSourceEnum,
+    VarianceStatusEnum, PeopleEvent, ProviderTypeEnum,
 )
 
 VARIANCE_THRESHOLD_PERCENT = 5.0  # ignore noise under this
@@ -37,19 +37,20 @@ async def compute_daily_variance(outlet_id: str, period_date: datetime, db: Asyn
     items_result = await db.execute(select(InventoryItem).where(InventoryItem.id.in_(item_ids)))
     items = {i.id: i for i in items_result.scalars().all()}
 
-    # Jarvis events that day which corroborate a gap as leakage rather than waste
-    jarvis_result = await db.execute(
+    # Vision-provider events that day which corroborate a gap as leakage
+    # rather than waste — any registered vision vendor, not just Jarvis.
+    vision_result = await db.execute(
         select(PeopleEvent).where(
             and_(
                 PeopleEvent.outlet_id == outlet_id,
-                PeopleEvent.source == IngestSourceEnum.jarvis,
+                PeopleEvent.source_type == ProviderTypeEnum.vision,
                 PeopleEvent.event_type.in_(["unrecorded_removal", "unauthorized_access"]),
                 PeopleEvent.occurred_at >= day_start,
                 PeopleEvent.occurred_at < day_end,
             )
         )
     )
-    leakage_signal = len(jarvis_result.scalars().all()) > 0
+    leakage_signal = len(vision_result.scalars().all()) > 0
 
     out = []
     for rec in consumption_records:

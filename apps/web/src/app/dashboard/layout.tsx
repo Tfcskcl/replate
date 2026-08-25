@@ -11,6 +11,7 @@ const navItems = [
   { href: "/dashboard/sop", label: "SOP Library", icon: "📋" },
   { href: "/dashboard/chefs", label: "Chefs", icon: "👨‍🍳" },
   { href: "/dashboard/location", label: "Location Intel", icon: "📍" },
+  { href: "/dashboard/intelligence", label: "Intelligence", icon: "📈" },
   { href: "/dashboard/reports", label: "Reports", icon: "📊" },
   { href: "/dashboard/partners", label: "Partners", icon: "🤝" },
 ];

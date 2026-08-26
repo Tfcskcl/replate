@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
+import { clerkEnabled, useSafeUser } from "../../lib/clerk-safe";
 import {
   LayoutGrid,
   Store,
@@ -35,8 +35,15 @@ const navItems: { href: string; label: string; icon: LucideIcon }[] = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useUser();
+  const user = useSafeUser();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Fail closed. Without Clerk there is no session to verify, so the app
+  // must refuse to render rather than present a shell that could be mistaken
+  // for a signed-in state. The public site degrades; this does not.
+  if (!clerkEnabled) {
+    return <AuthUnavailable />;
+  }
 
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
@@ -213,6 +220,69 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div style={{ padding: space[5] }}>{children}</div>
       </main>
+    </div>
+  );
+}
+
+/**
+ * Shown instead of the app when Clerk is not configured. Deliberately plain
+ * and explicit: this is an operator-facing failure, not a customer-facing
+ * page, and it should be obvious that the cause is configuration rather than
+ * a permissions problem with their account.
+ */
+function AuthUnavailable() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: color.canvas,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: space[5],
+      }}
+    >
+      <div
+        style={{
+          maxWidth: 460,
+          background: color.surface,
+          border: `1px solid ${color.rule}`,
+          borderRadius: radius.lg,
+          padding: space[6],
+        }}
+      >
+        <img
+          src="/logo-mark.png"
+          alt=""
+          style={{ width: 32, height: 32, objectFit: "contain", marginBottom: space[4] }}
+        />
+        <h1 style={{ fontSize: text.h3, fontWeight: 600, margin: `0 0 ${space[3]}px` }}>
+          Dashboard unavailable
+        </h1>
+        <p style={{ fontSize: text.bodyLg, color: color.ink2, margin: `0 0 ${space[4]}px` }}>
+          Authentication isn&apos;t configured for this deployment, so the dashboard can&apos;t
+          verify who you are. Nothing is wrong with your account.
+        </p>
+        <p style={{ fontSize: text.body, color: color.ink3, margin: `0 0 ${space[5]}px` }}>
+          If you manage this deployment: the Clerk environment variables are missing for this
+          environment.
+        </p>
+        <Link
+          href="/"
+          style={{
+            display: "inline-block",
+            padding: "10px 20px",
+            background: color.ink,
+            color: color.surface,
+            borderRadius: radius.md,
+            fontSize: text.body,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          ← Back to re-plate.in
+        </Link>
+      </div>
     </div>
   );
 }

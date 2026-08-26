@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
+import { AuthedOnly, GuestOnly, SignInAction, AuthedLink } from "../lib/clerk-safe";
 import { color, radius, text, space, MAX_WIDTH } from "../lib/design";
 
 const SOURCES = [
@@ -173,8 +172,8 @@ export default function LandingPage() {
             >
               Contact
             </a>
-            <SignedIn>
-              <Link
+            <AuthedOnly>
+              <AuthedLink
                 href="/dashboard"
                 style={{
                   padding: "9px 18px",
@@ -187,10 +186,10 @@ export default function LandingPage() {
                 }}
               >
                 Dashboard →
-              </Link>
-            </SignedIn>
-            <SignedOut>
-              <SignInButton mode="modal">
+              </AuthedLink>
+            </AuthedOnly>
+            <GuestOnly>
+              <SignInAction>
                 <button
                   style={{
                     padding: "9px 18px",
@@ -205,8 +204,8 @@ export default function LandingPage() {
                 >
                   Sign in
                 </button>
-              </SignInButton>
-            </SignedOut>
+              </SignInAction>
+            </GuestOnly>
           </div>
         </Section>
       </div>
@@ -248,18 +247,18 @@ export default function LandingPage() {
             flexWrap: "wrap",
           }}
         >
-          <SignedIn>
-            <Link href="/dashboard" style={{ textDecoration: "none" }}>
+          <AuthedOnly>
+            <AuthedLink href="/dashboard" style={{ textDecoration: "none" }}>
               <PrimaryCTA>Go to dashboard →</PrimaryCTA>
-            </Link>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
+            </AuthedLink>
+          </AuthedOnly>
+          <GuestOnly>
+            <SignInAction>
               <button style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
                 <PrimaryCTA>Sign in to dashboard →</PrimaryCTA>
               </button>
-            </SignInButton>
-          </SignedOut>
+            </SignInAction>
+          </GuestOnly>
           <a
             href="mailto:garima@re-plate.in"
             style={{

@@ -34,16 +34,28 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+/**
+ * ClerkProvider throws during SSR when `publishableKey` is missing, which
+ * would take down the public marketing page along with the app — they share
+ * this domain. Mounting it conditionally keeps `/` serving while auth config
+ * is broken; `/dashboard` fails closed separately in its own layout.
+ */
+const clerkConfigured = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider>
-      <html lang="en">
-        <body className={inter.className}>{children}</body>
-      </html>
-    </ClerkProvider>
+  const document = (
+    <html lang="en">
+      <body className={inter.className}>{children}</body>
+    </html>
   );
+
+  if (!clerkConfigured) {
+    return document;
+  }
+
+  return <ClerkProvider>{document}</ClerkProvider>;
 }

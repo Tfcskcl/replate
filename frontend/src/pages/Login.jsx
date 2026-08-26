@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Logo } from "@/components/Logo";
 import { formatApiError } from "@/lib/api";
@@ -75,6 +75,11 @@ export default function Login() {
               {loading ? "Signing in…" : <>Sign in <ArrowRight size={16} /></>}
             </button>
           </form>
+
+          <div className="flex items-center justify-between mt-4 text-sm">
+            <Link to="/forgot-password" data-testid="forgot-password-link" className="text-zinc-400 hover:text-white transition-colors">Forgot password?</Link>
+            <Link to="/register" data-testid="register-link" className="text-[#EF5A28] hover:underline">Create account</Link>
+          </div>
 
           <div className="mt-8 text-xs text-zinc-500 border border-zinc-800/80 rounded-md p-3 bg-zinc-900/40">
             <div className="micro-label mb-1.5">Demo access</div>

@@ -1,0 +1,25 @@
+{
+  "summary": "Tested the new self-service Register+Admin-Approval and Forgot/Reset password flows end-to-end. Backend: 7/7 pytest tests pass in /app/backend/tests/test_auth_flows.py — register creates PENDING (role OPERATOR), duplicate email 400, pending login 403 with 'pending admin approval' detail, seeded users (owner/manager/operator) still login 200, non-admin (OPERATOR) approve returns 403, OWNER approve flips to ACTIVE and enables login 200, forgot-password returns reset_link+reset_token for a known email and a generic message (no token leak) for unknown emails, reset-password updates password (old fails, new succeeds), reused/invalid tokens 400. Frontend Playwright: /register form validates mismatched passwords inline (register-error), a valid submit shows register-success; login page has register-link + forgot-password-link; a PENDING account gets login-error 'Your account is pending admin approval'; OWNER login → /app/users shows pending-banner + approve-user-<id> button; clicking flips status to Active; the newly approved user then logs in successfully; /forgot-password shows reset-link that opens /reset-password?token=..., setting a new password reveals reset-success and subsequent login with the new password works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_auth_flows.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/auth_flows.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py /auth/forgot-password intentionally returns reset_link+reset_token in the response body (documented as MOCKED email). For production remove those fields and always return only the generic message to avoid account-enumeration / token-leak.",
+    "/auth/register defaults new users to role OPERATOR with outlet_id=None — after approval the user can login but has no outlet; admin should be reminded to assign an outlet (PATCH /users/{id} exists but there's no UI prompt beyond the Users table).",
+    "PATCH /users/{id} and /users/{id}/approve both accept MANAGER role as ADMIN_ROLES — that is intended per spec but note a MANAGER can therefore promote another user to OWNER via PATCH role; consider restricting role escalation to OWNER/ADMIN only.",
+    "Password reset tokens are stored with 1h expiry and are single-use (good). No rate-limit on /auth/forgot-password — trivial to spam; add throttling for production.",
+    "Login sets httpOnly cookies with SameSite=None+Secure AND returns access_token in JSON (used via Authorization Bearer from localStorage). Two auth surfaces coexist which is fine but doubles the surface area; pick one for prod."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_flows.py", "/app/test_reports/iteration_2.json"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "test_credentials": "OWNER amit@chef-hire.in / replate123; dynamically-created qa_pending_*@test.in and qa_reset_*@test.in used by tests.",
+  "seed_data_creation": "Tests create ephemeral qa_pending_<rand>@test.in, qa_reset_<rand>@test.in and qa_ui_<ts>@test.in accounts (persist in Mongo but clearly prefixed for cleanup).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "New auth flow tests live at /app/backend/tests/test_auth_flows.py (7 tests). Existing regression suite /app/backend/tests/backend_test.py still covers inventory/scale/dashboard. Frontend testids in this iteration: register-name/email/password/confirm/submit/error/success, forgot-email/submit, reset-link, reset-password/confirm/submit/success, login-error, pending-banner, approve-user-<id>. Forgot-password returns reset_link+reset_token in JSON body (V0.1 mocked email) — this is by design, not a bug."
+}

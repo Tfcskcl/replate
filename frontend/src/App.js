@@ -15,6 +15,9 @@ import Users from "@/pages/Users";
 import Organisation from "@/pages/Organisation";
 import EdgeApp from "@/pages/EdgeApp";
 import Landing from "@/pages/Landing";
+import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 
 function Protected({ children }) {
   const { user } = useAuth();
@@ -30,6 +33,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/edge" element={<Protected><EdgeApp /></Protected>} />
           <Route path="/app" element={<Protected><AppLayout /></Protected>}>
             <Route index element={<Dashboard />} />

@@ -15,6 +15,7 @@ import logging
 import uuid
 import bcrypt
 import jwt
+import secrets
 
 # ---------------------------------------------------------------------------
 # Setup
@@ -149,6 +150,28 @@ class MovementCreate(BaseModel):
     note: Optional[str] = None
 
 
+class RegisterIn(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordIn(BaseModel):
+    token: str
+    password: str
+
+
+class UserPatch(BaseModel):
+    approved: Optional[bool] = None
+    role: Optional[Literal["OWNER", "ADMIN", "MANAGER", "STORE_MANAGER", "OPERATOR"]] = None
+    outlet_id: Optional[str] = None
+    status: Optional[str] = None
+
+
 class DeviceCreate(BaseModel):
     name: str
     type: Literal["SCALE", "CAMERA", "ANDROID_EDGE"]
@@ -257,12 +280,36 @@ def set_auth_cookies(resp: Response, access: str, refresh: str):
     resp.set_cookie("refresh_token", refresh, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
 
 
+@api.post("/auth/register")
+async def register(body: RegisterIn):
+    email = body.email.strip().lower()
+    if await db.users.find_one({"email": email}):
+        raise HTTPException(status_code=400, detail="An account with this email already exists.")
+    doc = {
+        "id": new_id("USER_"),
+        "name": body.name.strip(),
+        "email": email,
+        "role": "OPERATOR",
+        "outlet_id": None,
+        "password_hash": hash_password(body.password),
+        "active": True,
+        "approved": False,
+        "status": "PENDING",
+        "created_at": now_iso(),
+    }
+    await db.users.insert_one({**doc})
+    return {"message": "Account created. It is pending admin approval before you can sign in.",
+            "status": "PENDING"}
+
+
 @api.post("/auth/login")
 async def login(body: LoginIn, response: Response):
     email = body.email.strip().lower()
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(body.password, user.get("password_hash", "")):
         raise HTTPException(status_code=401, detail="Invalid email or password")
+    if user.get("status") == "PENDING" or user.get("approved") is False:
+        raise HTTPException(status_code=403, detail="Your account is pending admin approval.")
     access = create_access_token(user["id"], user["email"])
     refresh = create_refresh_token(user["id"])
     set_auth_cookies(response, access, refresh)
@@ -281,6 +328,38 @@ async def logout(response: Response, _=Depends(get_current_user)):
 @api.get("/auth/me")
 async def me(user=Depends(get_current_user)):
     return user
+
+
+@api.post("/auth/forgot-password")
+async def forgot_password(body: ForgotPasswordIn):
+    email = body.email.strip().lower()
+    user = await db.users.find_one({"email": email})
+    generic = {"message": "If an account exists for this email, a password reset link has been generated."}
+    if not user:
+        return generic
+    token = secrets.token_urlsafe(32)
+    await db.password_reset_tokens.insert_one({
+        "token": token, "user_id": user["id"], "used": False,
+        "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+        "created_at": now_iso(),
+    })
+    reset_link = f"/reset-password?token={token}"
+    logger.info(f"[PASSWORD RESET] {email} -> {reset_link}")
+    # Prototype only: return the link so it is usable without an email provider (MOCKED email delivery)
+    return {**generic, "reset_link": reset_link, "reset_token": token, "dev_note": "Email delivery is mocked in V0.1"}
+
+
+@api.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordIn):
+    rec = await db.password_reset_tokens.find_one({"token": body.token})
+    if not rec or rec.get("used"):
+        raise HTTPException(status_code=400, detail="Invalid or already-used reset link.")
+    if rec["expires_at"] < now_iso():
+        raise HTTPException(status_code=400, detail="This reset link has expired.")
+    await db.users.update_one({"id": rec["user_id"]},
+                              {"$set": {"password_hash": hash_password(body.password)}})
+    await db.password_reset_tokens.update_one({"token": body.token}, {"$set": {"used": True}})
+    return {"message": "Password updated. You can now sign in."}
 
 
 @api.post("/auth/refresh")
@@ -354,12 +433,43 @@ async def create_user(body: UserCreate, user=Depends(get_current_user)):
         "outlet_id": body.outlet_id,
         "password_hash": hash_password(body.password),
         "active": True,
+        "approved": True,
+        "status": "ACTIVE",
         "created_at": now_iso(),
     }
     await db.users.insert_one({**doc})
     doc.pop("_id", None)
     doc.pop("password_hash", None)
     return doc
+
+
+ADMIN_ROLES = {"OWNER", "ADMIN", "MANAGER"}
+
+
+@api.patch("/users/{user_id}")
+async def patch_user(user_id: str, body: UserPatch, user=Depends(get_current_user)):
+    if user.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="You do not have permission to manage users.")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if "approved" in updates:
+        updates["status"] = "ACTIVE" if updates["approved"] else "PENDING"
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    res = await db.users.update_one({"id": user_id}, {"$set": updates})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
+
+
+@api.post("/users/{user_id}/approve")
+async def approve_user(user_id: str, user=Depends(get_current_user)):
+    if user.get("role") not in ADMIN_ROLES:
+        raise HTTPException(status_code=403, detail="You do not have permission to approve users.")
+    res = await db.users.update_one({"id": user_id},
+                                    {"$set": {"approved": True, "status": "ACTIVE"}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return await db.users.find_one({"id": user_id}, {"_id": 0, "password_hash": 0})
 
 
 # ---------------------------------------------------------------------------
@@ -708,7 +818,8 @@ async def seed():
         await db.users.insert_one({
             "id": new_id("USER_"), "name": "Amit (Owner)", "email": admin_email,
             "role": "OWNER", "outlet_id": "OUTLET_001",
-            "password_hash": hash_password(admin_password), "active": True, "created_at": now_iso(),
+            "password_hash": hash_password(admin_password), "active": True,
+            "approved": True, "status": "ACTIVE", "created_at": now_iso(),
         })
     elif not verify_password(admin_password, existing.get("password_hash", "")):
         await db.users.update_one({"email": admin_email},
@@ -725,8 +836,12 @@ async def seed():
             await db.users.insert_one({
                 "id": new_id("USER_"), "name": name, "email": email, "role": role,
                 "outlet_id": outlet, "password_hash": hash_password("replate123"),
-                "active": True, "created_at": now_iso(),
+                "active": True, "approved": True, "status": "ACTIVE", "created_at": now_iso(),
             })
+
+    # Migration: any pre-existing user without an approval flag is treated as approved
+    await db.users.update_many({"approved": {"$exists": False}},
+                               {"$set": {"approved": True, "status": "ACTIVE"}})
 
     # Products
     if await db.products.count_documents({}) == 0:
@@ -817,6 +932,7 @@ async def startup():
     await db.products.create_index("id", unique=True)
     await db.weighing_events.create_index([("local_event_id", 1), ("device_id", 1)], unique=True)
     await db.inventory_movements.create_index("timestamp")
+    await db.password_reset_tokens.create_index("token")
     await seed()
 
 

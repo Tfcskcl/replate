@@ -24,6 +24,11 @@ export default function Users() {
   const load = useCallback(() => { api.get("/users").then(({ data }) => setRows(data)); }, []);
   useEffect(() => { load(); }, [load]);
 
+  const approve = async (id) => {
+    try { await api.post(`/users/${id}/approve`); toast.success("User approved — they can now sign in"); load(); }
+    catch (e) { toast.error(formatApiError(e.response?.data?.detail)); }
+  };
+
   const submit = async () => {
     if (!form.name || !form.email) { toast.error("Name and email required"); return; }
     setSaving(true);
@@ -46,21 +51,42 @@ export default function Users() {
         </button>
       </PageHeader>
 
+      {rows.some((u) => u.status === "PENDING") && (
+        <div data-testid="pending-banner" className="mb-4 flex items-center gap-2 text-sm text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-md px-4 py-2.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 pulse-dot" />
+          {rows.filter((u) => u.status === "PENDING").length} account(s) awaiting approval
+        </div>
+      )}
+
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
           <thead><tr className="border-b border-zinc-800 text-left">
-            {["Name", "Email", "Role", "Permissions", "Outlet"].map((h) => <th key={h} className="micro-label font-normal px-4 py-3">{h}</th>)}
+            {["Name", "Email", "Role", "Outlet", "Status", ""].map((h) => <th key={h} className="micro-label font-normal px-4 py-3">{h}</th>)}
           </tr></thead>
           <tbody className="divide-y divide-zinc-800/80">
-            {rows.map((u) => (
+            {rows.map((u) => {
+              const pending = u.status === "PENDING";
+              return (
               <tr key={u.id} data-testid={`user-row-${u.id}`} className="hover:bg-zinc-800/30 transition-colors">
                 <td className="px-4 py-3 font-medium">{u.name}</td>
                 <td className="px-4 py-3 text-zinc-400 font-mono text-xs">{u.email}</td>
                 <td className="px-4 py-3"><span className="text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border text-[#EF5A28] bg-[#EF5A28]/10 border-[#EF5A28]/30">{u.role}</span></td>
-                <td className="px-4 py-3 text-zinc-400 text-xs">{ROLE_DESC[u.role]}</td>
                 <td className="px-4 py-3 font-mono text-xs text-zinc-500">{u.outlet_id || "—"}</td>
+                <td className="px-4 py-3">
+                  <span className={`text-[10px] font-mono uppercase tracking-wider px-2 py-0.5 rounded border ${pending ? "text-amber-400 bg-amber-500/10 border-amber-500/30" : "text-green-400 bg-green-500/10 border-green-500/30"}`}>
+                    {pending ? "Pending" : "Active"}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {pending && (
+                    <button data-testid={`approve-user-${u.id}`} onClick={() => approve(u.id)}
+                      className="text-xs font-medium bg-[#EF5A28] hover:bg-[#D94B1C] text-white px-3 py-1.5 rounded-md transition-all active:scale-[0.98]">
+                      Approve
+                    </button>
+                  )}
+                </td>
               </tr>
-            ))}
+            );})}
           </tbody>
         </table>
       </Card>

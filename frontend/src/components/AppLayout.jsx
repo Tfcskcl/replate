@@ -11,15 +11,15 @@ import {
 } from "@/components/ui/select";
 
 const NAV = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/inventory", label: "Inventory", icon: Boxes },
-  { to: "/movements", label: "Movements", icon: ArrowLeftRight },
-  { to: "/products", label: "Products / SKU", icon: Package },
-  { to: "/weighing-events", label: "Weighing Events", icon: Scale },
-  { to: "/devices", label: "Devices", icon: Cpu },
-  { to: "/outlets", label: "Outlets", icon: Store },
-  { to: "/users", label: "Users & Roles", icon: Users },
-  { to: "/organisation", label: "Organisation", icon: Building2 },
+  { to: "/app", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/app/inventory", label: "Inventory", icon: Boxes },
+  { to: "/app/movements", label: "Movements", icon: ArrowLeftRight },
+  { to: "/app/products", label: "Products / SKU", icon: Package },
+  { to: "/app/weighing-events", label: "Weighing Events", icon: Scale },
+  { to: "/app/devices", label: "Devices", icon: Cpu },
+  { to: "/app/outlets", label: "Outlets", icon: Store },
+  { to: "/app/users", label: "Users & Roles", icon: Users },
+  { to: "/app/organisation", label: "Organisation", icon: Building2 },
 ];
 
 export default function AppLayout() {
@@ -33,7 +33,7 @@ export default function AppLayout() {
       {/* Sidebar */}
       <aside className="hidden md:flex w-64 shrink-0 flex-col border-r border-zinc-800/80 bg-[#0C0C0E] sticky top-0 h-screen">
         <div className="px-5 h-16 flex items-center border-b border-zinc-800/80">
-          <Link to="/"><Logo size={26} /></Link>
+          <Link to="/app"><Logo size={30} /></Link>
         </div>
 
         <div className="px-3 py-4">

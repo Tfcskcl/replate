@@ -40,7 +40,7 @@ export default function Dashboard() {
         <Card className="lg:col-span-2 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="micro-label">Recent Movements</div>
-            <Link to="/movements" className="text-xs text-[#EF5A28] hover:underline font-mono">VIEW ALL →</Link>
+            <Link to="/app/movements" className="text-xs text-[#EF5A28] hover:underline font-mono">VIEW ALL →</Link>
           </div>
           <div className="divide-y divide-zinc-800/80">
             {data.recent_movements.map((m) => (
@@ -107,7 +107,7 @@ export default function Dashboard() {
       <Card className="p-5 mt-4">
         <div className="flex items-center justify-between mb-4">
           <div className="micro-label">Recent Weighing Events</div>
-          <Link to="/weighing-events" className="text-xs text-[#EF5A28] hover:underline font-mono">VIEW ALL →</Link>
+          <Link to="/app/weighing-events" className="text-xs text-[#EF5A28] hover:underline font-mono">VIEW ALL →</Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {data.recent_weighings.map((w) => (

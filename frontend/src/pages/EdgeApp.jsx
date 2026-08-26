@@ -9,6 +9,7 @@ import {
   CheckCircle2, Clock, RefreshCw, Send, Radio, ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import { connectScale } from "@/lib/scale";
 
 const QUEUE_KEY = "replate_edge_queue";
 const STABLE_THRESHOLD = 0.03; // kg range across window to be "stable"
@@ -103,47 +104,20 @@ export default function EdgeApp() {
 
   const newSimTarget = () => { if (btStatus === "simulating") startSimulate(); };
 
-  // ---- Web Bluetooth ----
-  const parseWeight = (dataview) => {
-    try {
-      const text = new TextDecoder().decode(dataview);
-      const m = text.match(/-?\d+(\.\d+)?/);
-      if (m) return parseFloat(m[0]);
-    } catch { /* not text */ }
-    try { return dataview.getInt16(0, true) / 100; } catch { return null; }
-  };
-
+  // ---- Web Bluetooth (real scale: WSS 0x181D + proprietary fallback) ----
   const connectBluetooth = async () => {
-    if (!navigator.bluetooth) {
-      toast.error("Web Bluetooth not supported on this browser. Use Simulate mode.");
-      return;
-    }
     try {
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ["weight_scale", "battery_service", 0x181d, 0x180f],
+      const device = await connectScale({
+        onWeight: (val) => pushReading(+val.toFixed(3)),
+        onStatus: (s) => { if (s === "connected") { setBtStatus("connected"); toast.success("Scale connected"); } },
+        onDisconnect: () => setBtStatus("disconnected"),
+        onProtocol: (p) => toast.message(`Scale: ${p}`),
       });
       btDeviceRef.current = device;
-      const server = await device.gatt.connect();
-      setBtStatus("connected");
-      toast.success(`Connected to ${device.name || "scale"}`);
-      // Try to find a notify characteristic
-      const services = await server.getPrimaryServices();
-      for (const svc of services) {
-        const chars = await svc.getCharacteristics();
-        for (const ch of chars) {
-          if (ch.properties.notify) {
-            await ch.startNotifications();
-            ch.addEventListener("characteristicvaluechanged", (e) => {
-              const val = parseWeight(e.target.value);
-              if (val != null && !isNaN(val)) pushReading(+val.toFixed(3));
-            });
-          }
-        }
-      }
-      device.addEventListener("gattserverdisconnected", () => setBtStatus("disconnected"));
     } catch (e) {
-      toast.error("Bluetooth connection cancelled / failed.");
+      if (e.message === "WEB_BLUETOOTH_UNSUPPORTED")
+        toast.error("Web Bluetooth needs Android Chrome or desktop Chrome. Use Simulate.");
+      else toast.error("Bluetooth connection cancelled / failed.");
     }
   };
 
@@ -226,7 +200,7 @@ export default function EdgeApp() {
         {/* header */}
         <div className="px-5 h-14 flex items-center justify-between border-b border-zinc-800/80 sticky top-0 bg-[#0B0B0C]/95 backdrop-blur z-20">
           <div className="flex items-center gap-3">
-            <Link to="/" className="text-zinc-500 hover:text-white" data-testid="edge-back"><ArrowLeft size={18} /></Link>
+            <Link to="/app" className="text-zinc-500 hover:text-white" data-testid="edge-back"><ArrowLeft size={18} /></Link>
             <Logo size={22} />
           </div>
           <span className="micro-label text-[#EF5A28]">EDGE</span>

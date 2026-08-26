@@ -14,6 +14,7 @@ import Outlets from "@/pages/Outlets";
 import Users from "@/pages/Users";
 import Organisation from "@/pages/Organisation";
 import EdgeApp from "@/pages/EdgeApp";
+import Landing from "@/pages/Landing";
 
 function Protected({ children }) {
   const { user } = useAuth();
@@ -27,9 +28,10 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/login" element={<Login />} />
           <Route path="/edge" element={<Protected><EdgeApp /></Protected>} />
-          <Route path="/" element={<Protected><AppLayout /></Protected>}>
+          <Route path="/app" element={<Protected><AppLayout /></Protected>}>
             <Route index element={<Dashboard />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="movements" element={<Movements />} />

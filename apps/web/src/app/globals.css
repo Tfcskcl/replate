@@ -1,0 +1,154 @@
+/* ============================================================
+   Re-Plate design tokens
+   ------------------------------------------------------------
+   These are not new brand decisions. Every value here is
+   extracted from the colours, sizes and radii already in use
+   across the app, then de-duplicated: the codebase had 59
+   distinct hex values including 6 greens and 5 reds for the
+   same two semantic roles. The brand core — #FF6B2B orange,
+   #111 ink, #F8F8F6 canvas — is preserved exactly.
+
+   New code should reference these tokens (or the typed mirror
+   in src/lib/design.ts) rather than raw hex.
+   ============================================================ */
+
+:root {
+  /* ── Brand ─────────────────────────────────────────────── */
+  --rp-orange:        #FF6B2B;
+  --rp-orange-deep:   #EB6834;   /* hover / pressed */
+  --rp-orange-tint:   #FFF7F4;   /* wash behind orange content */
+
+  /* ── Ink ramp ──────────────────────────────────────────── */
+  --rp-ink:           #111111;   /* primary text, dark surfaces */
+  --rp-ink-2:         #555555;   /* secondary text */
+  --rp-ink-3:         #888888;   /* tertiary / captions */
+  --rp-ink-4:         #AAAAAA;   /* disabled, footers */
+
+  /* ── Surfaces ──────────────────────────────────────────── */
+  --rp-surface:       #FFFFFF;   /* cards, panels */
+  --rp-canvas:        #F8F8F6;   /* app background — warm off-white */
+  --rp-surface-dark:  #111111;   /* sidebar, inverted panels */
+  --rp-surface-dark2: #2A2A2A;   /* dividers inside dark surfaces */
+
+  /* ── Lines ─────────────────────────────────────────────── */
+  --rp-rule:          #E5E5E5;
+  --rp-rule-soft:     #F0F0F0;
+
+  /* ── Semantic (was 6 greens / 5 reds — now one each) ───── */
+  --rp-good:          #16A34A;
+  --rp-good-bg:       #DCFCE7;
+  --rp-warn:          #D97706;
+  --rp-warn-bg:       #FEF3C7;
+  --rp-bad:           #DC2626;
+  --rp-bad-bg:        #FEE2E2;
+  --rp-info:          #2563EB;
+  --rp-info-bg:       #DBEAFE;
+
+  /* ── Radius (was 10 values) ────────────────────────────── */
+  --rp-r-sm:          4px;
+  --rp-r-md:          8px;
+  --rp-r-lg:          12px;
+
+  /* ── Type scale (was 16 sizes) ─────────────────────────── */
+  --rp-t-micro:       11px;
+  --rp-t-caption:     12px;
+  --rp-t-body:        13px;
+  --rp-t-body-lg:     14px;
+  --rp-t-lead:        16px;
+  --rp-t-h3:          20px;
+  --rp-t-h2:          24px;
+  --rp-t-h1:          32px;
+  --rp-t-display:     44px;
+
+  /* ── Spacing ───────────────────────────────────────────── */
+  --rp-s-1:           4px;
+  --rp-s-2:           8px;
+  --rp-s-3:           12px;
+  --rp-s-4:           16px;
+  --rp-s-5:           24px;
+  --rp-s-6:           32px;
+  --rp-s-7:           48px;
+  --rp-s-8:           64px;
+
+  /* ── Elevation ─────────────────────────────────────────── */
+  --rp-shadow-sm:     0 1px 2px rgba(17, 17, 17, 0.04);
+  --rp-shadow-md:     0 2px 8px rgba(17, 17, 17, 0.06);
+
+  --rp-maxw:          1080px;
+}
+
+/* ── Reset / base ────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--rp-canvas);
+  color: var(--rp-ink);
+  font-size: var(--rp-t-body-lg);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+a { color: inherit; }
+
+img, svg, video {
+  max-width: 100%;
+  height: auto;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+/* Numeric columns should align — tables, ₹ figures, weights */
+.rp-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Wide content scrolls inside itself, never the page body */
+.rp-scroll-x {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+/* ── Focus ───────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--rp-orange);
+  outline-offset: 2px;
+  border-radius: var(--rp-r-sm);
+}
+
+/* ── Motion ──────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

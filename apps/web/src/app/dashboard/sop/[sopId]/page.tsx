@@ -283,7 +283,7 @@ export default function SOPAnnotationPage() {
 
           {steps.length === 0 && (
             <p style={{ fontSize: 13, color: "#ccc", textAlign: "center", padding: 20 }}>
-              No steps yet. Play the video and click "Tag step" to annotate.
+              No steps yet. Play the video and click &quot;Tag step&quot; to annotate.
             </p>
           )}
 
@@ -393,7 +393,7 @@ function StepEditor({ step, onSave, onCancel, saving, currentTime }: {
           <input style={inputStyle} type="number" value={form.allowed_duration_max_sec} onChange={e => setForm(f => ({ ...f, allowed_duration_max_sec: Number(e.target.value) }))} />
         </div>
         <div style={{ gridColumn: "1/-1" }}>
-          <label style={labelStyle}>Required ingredients (name:grams, e.g. "cumin:5, butter:50")</label>
+          <label style={labelStyle}>Required ingredients (name:grams, e.g. &quot;cumin:5, butter:50&quot;)</label>
           <input style={inputStyle} value={ingText} onChange={e => setIngText(e.target.value)} placeholder="cumin:5, butter:50, tomato puree:200" />
         </div>
       </div>

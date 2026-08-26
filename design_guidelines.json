@@ -1,0 +1,131 @@
+{
+  "brand_identity": {
+    "name": "RE·PLATE",
+    "tagline": "AI Kitchen & Inventory Operations Intelligence",
+    "reference_url": "https://re-plate.in/",
+    "logo_style": "Wordmark RE·PLATE with vibrant orange emblem dot / badge (#EF5A28)",
+    "archetype": "The Performance Pro & Tactical Operations",
+    "visual_tone": "Near-black operational dark theme, precision monospace data metrics, high contrast burnt orange accents, sharp 1px card borders, zero fluff."
+  },
+  "colors": {
+    "background": "#0B0B0C",
+    "background_card": "#121214",
+    "background_card_hover": "#18181B",
+    "background_subtle": "#1A1A1E",
+    "primary": "#EF5A28",
+    "primary_hover": "#D94B1C",
+    "primary_subtle": "rgba(239, 90, 40, 0.12)",
+    "text_primary": "#FAFAFA",
+    "text_secondary": "#A1A1AA",
+    "text_muted": "#71717A",
+    "border": "#27272A",
+    "border_active": "#3F3F46",
+    "border_accent": "rgba(239, 90, 40, 0.3)",
+    "status": {
+      "success": "#22C55E",
+      "success_bg": "rgba(34, 197, 94, 0.1)",
+      "warning": "#EAB308",
+      "warning_bg": "rgba(234, 179, 8, 0.1)",
+      "danger": "#EF4444",
+      "danger_bg": "rgba(239, 68, 68, 0.1)",
+      "info": "#3B82F6",
+      "info_bg": "rgba(59, 130, 246, 0.1)"
+    }
+  },
+  "typography": {
+    "heading_font": "Chivo, Outfit, sans-serif",
+    "body_font": "Inter, DM Sans, sans-serif",
+    "mono_font": "JetBrains Mono, Roboto Mono, monospace",
+    "micro_labels": "UPPERCASE monospace with tracking-[0.2em] or tracking-[0.25em], font-mono, text-[10px] or text-xs text-zinc-400",
+    "metric_values": "font-mono font-bold tracking-tight text-white",
+    "hierarchy": {
+      "h1": "text-3xl md:text-5xl font-extrabold tracking-tight text-white",
+      "h2": "text-2xl md:text-3xl font-bold tracking-tight text-white",
+      "h3": "text-lg md:text-xl font-semibold text-white",
+      "h4": "text-base font-medium text-zinc-200",
+      "body": "text-sm text-zinc-300 leading-relaxed",
+      "caption": "text-xs text-zinc-400 font-mono"
+    }
+  },
+  "layout_and_navigation": {
+    "theme": "Dark Operational Dashboard",
+    "sidebar": "Fixed left sidebar with collapsable operational navigation, RE·PLATE logo header, outlet switcher, user context, and status pills.",
+    "topbar": "Sticky header with quick search, live scale connection status badge, active outlet selector, notification bell, and mobile drawer toggle.",
+    "grid_strategy": "High Density Grid (MODE B) with gap-4 md:gap-6, stretch alignment, subtle 1px border dividers.",
+    "modules": [
+      {
+        "id": "dashboard",
+        "label": "Dashboard",
+        "description": "KPI summary stats (Total Value ₹, Stock In/Out/Waste, Low Stock Count, Device Online Count), Live movements feed, Low stock alert feed, Weighing events feed, Edge device status widget."
+      },
+      {
+        "id": "products",
+        "label": "Products / SKU Master",
+        "description": "Full SKU table, barcode/RFID map, unit weights, minimum stock thresholds, yield ratios, and add/edit SKU dialog."
+      },
+      {
+        "id": "inventory",
+        "label": "Inventory",
+        "description": "Current on-hand stock quantities, valuation (₹), storage location breakdown (Cold Room, Dry Store, Prep), and reorder action buttons."
+      },
+      {
+        "id": "movements",
+        "label": "Inventory Movements",
+        "description": "Audit ledger of stock receipts, transfers, waste logs, and auto-deductions with date/type/outlet filters."
+      },
+      {
+        "id": "devices",
+        "label": "Devices",
+        "description": "Edge scale controllers, CCTV camera AI nodes, status logs, battery/signal levels, Web Bluetooth link generator, and device pairing setup."
+      },
+      {
+        "id": "weighing_events",
+        "label": "Weighing Events",
+        "description": "Real-time stream of weight recordings from edge scale app (SKU, gross/tare/net weight, operator, timestamp, stability status)."
+      },
+      {
+        "id": "outlets",
+        "label": "Outlets",
+        "description": "Multi-location restaurant management (e.g. One N Only Anand, Sambharwala, Spice Garden), location settings, operational stats."
+      },
+      {
+        "id": "users",
+        "label": "Users & Roles",
+        "description": "Staff access matrix (Owner, Ops Manager, Kitchen Chef, Edge Controller operator)."
+      },
+      {
+        "id": "edge_app",
+        "label": "Edge Device App (Mobile Controller)",
+        "description": "Dedicated mobile-first controller interface with 3 tabs: 1. Device Status & Pairing (Web Bluetooth), 2. Live Weighing (Big weight display, STABLE indicator, SKU selector, TARE & SEND buttons), 3. Recent Events Feed."
+      }
+    ]
+  },
+  "component_styling": {
+    "cards": "bg-[#121214] border border-zinc-800/80 rounded-lg p-5 md:p-6 transition-colors hover:border-zinc-700/80",
+    "buttons": {
+      "primary": "bg-[#EF5A28] hover:bg-[#D94B1C] text-white font-medium px-4 py-2.5 rounded-md transition-all shadow-sm active:scale-[0.98] data-[testid]:button",
+      "secondary": "bg-zinc-800 hover:bg-zinc-700 text-zinc-100 border border-zinc-700 px-4 py-2.5 rounded-md transition-all",
+      "outline": "bg-transparent hover:bg-zinc-800/60 text-zinc-200 border border-zinc-700 px-4 py-2.5 rounded-md transition-all",
+      "danger": "bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2.5 rounded-md transition-all"
+    },
+    "tables": "W-full text-left text-sm text-zinc-300 divide-y divide-zinc-800 border-t border-zinc-800",
+    "badges": "Inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-mono uppercase tracking-wider font-semibold",
+    "inputs": "Bg-zinc-900 border border-zinc-700/80 focus:border-[#EF5A28] focus:ring-1 focus:ring-[#EF5A28] text-white rounded-md px-3.5 py-2 text-sm placeholder-zinc-500 w-full outline-none"
+  },
+  "image_urls": {
+    "kitchen_scale_1": "https://images.unsplash.com/photo-1678787007807-b8d1a49dc181?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwyfHxyZXN0YXVyYW50JTIwa2l0Y2hlbiUyMGludmVudG9yeSUyMGZvb2QlMjBpbmdyZWRpZW50cyUyMHNjYWxlfGVufDB8fHx8MTc4NzcxOTE4Nnww&ixlib=rb-4.1.0&q=85",
+    "kitchen_scale_2": "https://images.unsplash.com/photo-1648765338337-c236111aade7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHw0fHxyZXN0YXVyYW50JTIwa2l0Y2hlbiUyMGludmVudG9yeSUyMGZvb2QlMjBpbmdyZWRpZW50cyUyMHNjYWxlfGVufDB8fHx8MTc4NzcxOTE4Nnww&ixlib=rb-4.1.0&q=85",
+    "kitchen_chef": "https://images.unsplash.com/photo-1640583342012-4622f31b650d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwa2l0Y2hlbiUyMGludmVudG9yeSUyMGZvb2QlMjBpbmdyZWRpZW50cyUyMHNjYWxlfGVufDB8fHx8MTc4NzcxOTE4Nnww&ixlib=rb-4.1.0&q=85"
+  },
+  "testing_requirements": {
+    "attribute": "data-testid",
+    "convention": "kebab-case, e.g. data-testid=\"live-weighing-send-button\", data-testid=\"inventory-table-row-1\", data-testid=\"sku-master-add-button\""
+  },
+  "universal_guidelines_for_main_agent": [
+    "Strictly follow RE-PLATE visual identity from re-plate.in: near-black charcoal background (#0B0B0C), vibrant orange accents (#EF5A28), uppercase wide-tracked monospace micro-labels.",
+    "Display all monetary figures in Indian Rupees (₹) and weights in KG / G with 3 decimal precision (e.g., 3.250 KG).",
+    "Ensure all interactive buttons, inputs, tabs, table rows, and status badges include proper data-testid attributes.",
+    "Include both the main Web Dashboard views and the Mobile Edge Device Controller view with Web Bluetooth scale connectivity simulation.",
+    "DO NOT use generic bright white backgrounds or default purple AI gradients."
+  ]
+}

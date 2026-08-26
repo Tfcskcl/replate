@@ -1,0 +1,88 @@
+@import url('https://fonts.googleapis.com/css2?family=Chivo:ital,wght@0,400;0,600;0,700;0,800;0,900;1,700;1,900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 240 6% 4%;
+        --foreground: 0 0% 98%;
+        --card: 240 5% 7%;
+        --card-foreground: 0 0% 98%;
+        --popover: 240 5% 7%;
+        --popover-foreground: 0 0% 98%;
+        --primary: 16 86% 55%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 240 4% 11%;
+        --secondary-foreground: 0 0% 98%;
+        --muted: 240 4% 11%;
+        --muted-foreground: 240 5% 65%;
+        --accent: 240 4% 13%;
+        --accent-foreground: 0 0% 98%;
+        --destructive: 0 72% 51%;
+        --destructive-foreground: 0 0% 98%;
+        --border: 240 4% 16%;
+        --input: 240 4% 16%;
+        --ring: 16 86% 55%;
+        --radius: 0.5rem;
+    }
+}
+
+* {
+    border-color: hsl(var(--border));
+}
+
+html, body, #root {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background-color: #0B0B0C;
+    color: hsl(var(--foreground));
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display { font-family: 'Chivo', sans-serif; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+.micro-label {
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.22em;
+    font-size: 10px;
+    color: hsl(var(--muted-foreground));
+    font-weight: 500;
+}
+
+::selection { background: rgba(239, 90, 40, 0.35); color: #fff; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #27272A; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #3F3F46; }
+
+.grain::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.025;
+    z-index: 1;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.animate-in-up { animation: fadeInUp 0.4s ease both; }
+
+@keyframes pulseDot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+.pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }

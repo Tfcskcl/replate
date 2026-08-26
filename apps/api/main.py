@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from database import engine, Base, AsyncSessionLocal
 from routers import (
@@ -18,12 +19,23 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    logger.info("Starting re-plate API...")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    logger.info(f"Starting re-plate API ({ENVIRONMENT})...")
+
+    # create_all only ever CREATES missing tables — it never alters an
+    # existing one, so a column added later would silently never appear.
+    # Production therefore uses Alembic (`alembic upgrade head`, run as the
+    # release step before this process starts); create_all stays for local
+    # development convenience only.
+    if ENVIRONMENT != "production":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
     async with AsyncSessionLocal() as db:
         await seed_default_providers(db)
     scheduler = start_scheduler()
@@ -33,11 +45,18 @@ async def lifespan(app: FastAPI):
     logger.info("re-plate API shut down.")
 
 
+_is_production = ENVIRONMENT == "production"
+
 app = FastAPI(
     title="re-plate API",
     description="AI-powered kitchen intelligence platform — Hidden Flavour Pvt. Ltd.",
     version="1.0.0",
     lifespan=lifespan,
+    # The interactive docs publish the complete route map. Useful locally,
+    # not something to serve from a public production URL.
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
 )
 
 app.add_middleware(
